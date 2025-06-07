@@ -1,0 +1,9 @@
+=== RESUMEN DE ENTRENAMIENTO ===
+Fecha: 2025-06-07 14:34:34
+Episodios totales: 1600
+Score promedio final: 237.21
+Mejor score: 311.75
+Peor score: -390.41
+Aterrizajes exitosos (>=200): 590 (36.9%)
+Aterrizajes eficientes (>0): 1029 (64.3%)
+Epsilon final: 0.0406
