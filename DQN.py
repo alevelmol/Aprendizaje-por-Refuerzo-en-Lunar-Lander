@@ -14,7 +14,7 @@ from lunar import LunarLanderEnv
 class DQN(torch.nn.Module):
     def __init__(self, state_size, action_size, hidden_size):  
         super(DQN, self).__init__()
-        #Definimos las capas de la red neuroal
+        #Definimos las capas de la red neuronal
         #Linear: Capa totalmente conectada (es lo mismo que Dense en Keras)
         self.fc1 = nn.Linear(state_size, hidden_size) #state_size son las entradas, hidden_size las salidas
         self.fc2 = nn.Linear(hidden_size, hidden_size)
@@ -22,7 +22,7 @@ class DQN(torch.nn.Module):
         self.fc4 = nn.Linear(hidden_size//2, action_size)
         
     def forward(self, x):
-        x = F.relu(self.fc1(x)) #Función de activación ReLU, la que vimos en clase vaya
+        x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         #La última no tiene activación porque la salida de la red son los q-values para cada acción
@@ -43,19 +43,20 @@ class ReplayBuffer():
         
     def sample(self, batch_size):
         batch = random.sample(self.buffer, batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch) #Esto del zip es una fumada. Lo explico más abajo
+        states, actions, rewards, next_states, dones = zip(*batch) #El zip se explica más abajo
 
         #El batch es una lista de tupla, y cada tupla es una experiencia:
         # [(state1, action1, reward1, next_state1, done1), (state2, action2, reward2, next_state2, done2), ...]
         #Con zip(*batch) lo que hacemos es "desempaquetar" las tuplas en listas separadas: una lista para states, otra para actions, y así para todas.
         
-        # Convertir a numpy arrays primero, luego a tensores
+        # Convertir a numpy arrays primero
         states = np.array(states)
         actions = np.array(actions)
         rewards = np.array(rewards)
         next_states = np.array(next_states)
         dones = np.array(dones)
         
+        #De arrays a tensores
         return (
             torch.FloatTensor(states),
             torch.LongTensor(actions),
@@ -72,8 +73,7 @@ class DQNAgent():
                 epsilon=1.0, epsilon_decay=0.998, epsilon_min=0.01,
                 learning_rate=0.0003, batch_size=64, 
                 memory_size=15000, episodes=1600, 
-                target_network_update_freq=5,
-                replays_per_episode=1000):
+                target_network_update_freq=5):
         
         # Inicializamos los hiperparámetros
         self.gamma = gamma
@@ -85,9 +85,8 @@ class DQNAgent():
         self.episodes = episodes
         
         self.target_updt_freq = target_network_update_freq
-        self.replays_per_episode = replays_per_episode
 
-        # Esto es para saber cuando estamos teniendo éxito o estamos mamando
+        # Esto es para saber qué episodios tienen éxito
         self.success_threshold = 200
         self.success_episodes = []
         
@@ -100,16 +99,16 @@ class DQNAgent():
         observation_space = lunar.env.observation_space
         action_space = lunar.env.action_space
         
-        # Esto es para saber si usamos GPU o CPU. A mi con CPU me tira rápido, 2-3 minutos para entrenar
+        # Esto es para saber si usamos GPU o CPU.
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        # Creamos las redes Q y las objetivas
-        hidden_size = 128  # Tamaño recomendado para LunarLander
+        # Creamos la red Q y las objetivo
+        hidden_size = 128 
         self.q_network = DQN(
             state_size=observation_space.shape[0],
             action_size=action_space.n,
             hidden_size=hidden_size
-        ).to(self.device)
+        ).to(self.device) #Se pasa al dispositivo en el que estemos entrenando. En PyTorch hace falta.
         
         self.target_network = DQN(
             state_size=observation_space.shape[0],
@@ -165,9 +164,9 @@ class DQNAgent():
         
         return next_state, reward, done, action
     
-    #Este método es para entrenamiento. Le metemos el reward shaping para 'penalizar' el uso de motores.
+    #Este método es para entrenamiento. Le aplicamos reward shaping para 'penalizar' el uso de motores.
     def act_with_state(self, state):
-        """Método usado durante el entrenamiento con reward shaping mejorado"""
+        """Método usado durante el entrenamiento con reward shaping"""
         if np.random.rand() <= self.epsilon:
             action = self.lunar.env.action_space.sample()
         else:
@@ -181,9 +180,9 @@ class DQNAgent():
         next_state, reward, done = self.lunar.take_action(action, verbose=False)
         
             
-        # Penalización normal por usar motores
+        # Reward shaping por usar motores
         if action != 0:
-            reward -= 0.1  # Penalización ligera por usar motor
+            reward -= 0.1 
 
         return next_state, reward, done, action
 
@@ -207,7 +206,7 @@ class DQNAgent():
         next_q_values = self.target_network(next_states).max(1)[0].detach()
         target_q_values = rewards + (self.gamma * next_q_values * ~dones)
 
-        # Función de pérdida, que hay que cambiarla. Me puse con Copilot a fuego y no la he cambiado honestly
+        # Función de pérdida
         loss = F.mse_loss(current_q_values.squeeze(), target_q_values)
 
         #Calculamos los gradientes y actualizamos pesos.
@@ -301,7 +300,7 @@ class DQNAgent():
         scores = []
         losses = []
         
-        print("Entrenamiento optimizado para EFICIENCIA DE COMBUSTIBLE")
+        print("Entrenamiento")
         print("Objetivo: Score > 200 con uso eficiente de motores")
         print("=" * 60)
 
@@ -314,9 +313,10 @@ class DQNAgent():
             while True:
                 next_state, reward, done, action = self.act_with_state(state)
                 
-                # Store experience
+                # Guardar experiencia
                 self.memory.push(state, action, reward, next_state, done)
                 
+                #Actualización del estado, recompensa total y pasos
                 state = next_state
                 total_reward += reward
                 steps += 1
@@ -333,7 +333,7 @@ class DQNAgent():
             self.success_episodes.append(total_reward)
             losses.append(episode_loss / max(steps//2, 1))
             
-            
+            #Actualizamos la red objetivo cuando corresponde
             if episode % self.target_updt_freq == 0:
                 self.update_target_network()
             
@@ -361,16 +361,16 @@ class DQNAgent():
                       f"Loss promedio ult. 50 episodios: {avg_loss:7.2f} | "
                       f"ε: {self.epsilon:.4f}")
                 
-        
+        #Guardar los datos de entrenamiento para crear las gráficas de la memoria
         self._save_training_data(scores, losses)
 
-        # Guardar modelo final
+        
         final_avg = np.mean(scores[-100:]) if len(scores) >= 100 else np.mean(scores)
         final_efficient = sum(1 for s in scores[-100:] if s > 0) if len(scores) >= 100 else sum(1 for s in scores if s > 0)
-        
+        # Guardar modelo final
         self.save_model(f"modelo_DQN.h5")
         
-        # Estadísticas finales mejoradas
+        # Estadísticas finales
         print("\n" + "=" * 60)
         print("RESULTADOS FINALES:")
         print("=" * 60)
